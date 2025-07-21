@@ -14,24 +14,8 @@ PALETTE = []
 
 
 
-def main():
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    screen.fill(BLACK)
-    pygame.display.set_caption("Drag and Drop Shapes")
-    clock = pygame.time.Clock()
-    pygame.draw.circle(screen, WHITE, (100, 100), 30)
-    pygame.display.flip()
-    running = True
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-    
-    clock.tick(60)
-main()
 
 
-'''
 # Shape class
 class Shape:
     def __init__(self, shape_type, color, position):
@@ -80,9 +64,6 @@ def main():
                 # Check if clicking on palette shapes
                 for shape in PALETTE:
                     if shape.rect and shape.rect.collidepoint(event.pos):
-                        new_shape = Shape(dragging_from_palette.shape_type, dragging_from_palette.color,event.pos)
-                        SHAPES.append(new_shape)
-                        new_shape.draw()
                         dragging_from_palette = shape
                         break
 
@@ -99,8 +80,8 @@ def main():
                     dragging_shape = None
                 elif dragging_from_palette:
                     # Create a new shape from the palette
-                    #new_shape = Shape(dragging_from_palette.shape_type, dragging_from_palette.color, event.pos)
-                    #SHAPES.append(new_shape)
+                    new_shape = Shape(dragging_from_palette.shape_type, dragging_from_palette.color, event.pos)
+                    SHAPES.append(new_shape)
                     dragging_from_palette = None
 
             if event.type == pygame.MOUSEMOTION:
@@ -123,4 +104,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-'''
