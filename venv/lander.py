@@ -84,12 +84,12 @@ policy_kwargs = dict(activation_fn=torch.nn.ReLU,
                      net_arch=nn_layers)
 model = DQN("MlpPolicy", env,policy_kwargs = policy_kwargs,
             learning_rate=learning_rate,
-            batch_size=16,  # for simplicity, we are not doing batch update.
+            batch_size=32,  # for simplicity, we are not doing batch update.
             buffer_size=10000,  # size of experience of replay buffer. Set to 1 as batch update is not done
             learning_starts=1000,  # learning starts immediately!
             gamma=0.99,  # discount facto. range is between 0 and 1.
-            tau = .05,  # the soft update coefficient for updating the target network
-            target_update_interval=10,  # update the target network immediately.
+            tau = .005,  # the soft update coefficient for updating the target network
+            target_update_interval=100,  # update the target network immediately.
             train_freq=(4,"step"),  # train the network at every step.
             max_grad_norm = 10,  # the maximum value for the gradient clipping
             exploration_initial_eps = 1,  # initial value of random action probability
@@ -103,9 +103,15 @@ model = DQN("MlpPolicy", env,policy_kwargs = policy_kwargs,
 # for documentation. For example, if you would like to run DDPG, just replace "DQN" above with "DDPG".
 
 env_name = 'LunarLander-v3'
+<<<<<<< HEAD
 env = gym.make(env_name, continuous = True)
 print('State shape: ', env.observation_space.shape)
 #print('Number of actions: ', env.action_space.n)
+=======
+env = gym.make(env_name)
+print('State shape: ', env.observation_space.shape)
+print('Number of actions: ', env.action_space.n)
+>>>>>>> ee85d72 (created)
 
 env = gym.make(env_name, render_mode="rgb_array")
 env = gym.wrappers.RecordVideo(

@@ -10,7 +10,7 @@ BLACK = (0,0,0)
 WHITE = (255,255,255)
 BACKGROUND_COLOR = BLACK
 SHAPES = []
-#PALETTE = []
+PALETTE = []
 
 
 # Shape class
@@ -52,7 +52,17 @@ def main():
 
     while True:
         screen.fill(BACKGROUND_COLOR)
+        pygame.draw.circle(screen, WHITE, (50,50), 30)
+        shape_circle = pygame.Rect(20, 20, 60, 60)
 
+        pygame.draw.rect(screen, WHITE, (120, 30, 60, 60))
+        shape_square = pygame.Rect(120,30,60,60) 
+
+        points1 = [(250, 20), 
+                        (220, 80), 
+                        (280, 80)]
+        pygame.draw.polygon(screen, WHITE, points1)
+        shape_triangle = pygame.Rect(220, 20, 60, 60)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -60,7 +70,13 @@ def main():
 
 
             if event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_x, mouse_y = event.pos
+                if shape_circle.collidepoint(mouse_x, mouse_y):
+                    new_shape = Shape('circle',WHITE, event.pos)
+                    SHAPES.append(new_shape)
+                    dragging_shape = new_shape
                 # Check if clicking on palette shapes
+                
                 for shape in PALETTE:
                     if shape.rect and shape.rect.collidepoint(event.pos):
                         dragging_from_palette = shape
@@ -95,17 +111,7 @@ def main():
         #for shape in PALETTE:
             #shape.draw(screen)
 
-        shape_circle = pygame.draw.circle(screen, WHITE, (50,50), 30)
-        shape_circle = pygame.Rect(20, 20, 60, 60)
-
-        shape_square = pygame.draw.rect(screen, WHITE, (120, 30, 60, 60))
-        shape_square = pygame.Rect(120,30,60,60) 
-
-        points1 = [(250, 20), 
-                      (220, 80), 
-                      (280, 80)]
-        shape_triangle = pygame.draw.polygon(screen, WHITE, points1)
-        shape_triangle = pygame.Rect(220, 20, 60, 60)
+        
 
         # Draw canvas shapes
         for shape in SHAPES:
