@@ -103,15 +103,9 @@ model = DQN("MlpPolicy", env,policy_kwargs = policy_kwargs,
 # for documentation. For example, if you would like to run DDPG, just replace "DQN" above with "DDPG".
 
 env_name = 'LunarLander-v3'
-<<<<<<< HEAD
 env = gym.make(env_name, continuous = True)
 print('State shape: ', env.observation_space.shape)
 #print('Number of actions: ', env.action_space.n)
-=======
-env = gym.make(env_name)
-print('State shape: ', env.observation_space.shape)
-print('Number of actions: ', env.action_space.n)
->>>>>>> ee85d72 (created)
 
 env = gym.make(env_name, render_mode="rgb_array")
 env = gym.wrappers.RecordVideo(

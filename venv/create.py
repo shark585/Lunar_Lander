@@ -75,12 +75,22 @@ def main():
                     new_shape = Shape('circle',WHITE, event.pos)
                     SHAPES.append(new_shape)
                     dragging_shape = new_shape
+
+                elif shape_square.collidepoint(mouse_x, mouse_y):
+                    new_shape = Shape('square', WHITE, event.pos)
+                    SHAPES.append(new_shape)
+                    dragging_shape = new_shape
+
+                elif shape_triangle.collidepoint(mouse_x, mouse_y):
+                    new_shape = Shape('triangle', WHITE, event.pos)
+                    SHAPES.append(new_shape)
+                    dragging_shape = new_shape
                 # Check if clicking on palette shapes
                 
-                for shape in PALETTE:
-                    if shape.rect and shape.rect.collidepoint(event.pos):
-                        dragging_from_palette = shape
-                        break
+                #for shape in PALETTE:
+                 #   if shape.rect and shape.rect.collidepoint(event.pos):
+                  #      dragging_from_palette = shape
+                   #     break
 
                 # Check if clicking on canvas shapes
                 if not dragging_from_palette:
