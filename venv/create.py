@@ -1,6 +1,7 @@
 __credits__ = ["Andrea PIERRÉ"]
 import sys
 import math
+import subprocess
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
@@ -29,52 +30,6 @@ except ImportError as e:
 
 import pygame
 
-
-FPS = 50
-SCALE = 30.0  # affects how fast-paced the game is, forces should be adjusted as well
-
-MAIN_ENGINE_POWER = 13.0
-SIDE_ENGINE_POWER = 0.6
-
-INITIAL_RANDOM = 1000.0  # Set 1500 to make game harder
-
-LANDER_POLY = [(-14, +17), (-17, 0), (-17, -10), (+17, -10), (+17, 0), (+14, +17)]
-LEG_AWAY = 20
-LEG_DOWN = 18
-LEG_W, LEG_H = 2, 8
-LEG_SPRING_TORQUE = 40
-
-SIDE_ENGINE_HEIGHT = 14
-SIDE_ENGINE_AWAY = 12
-MAIN_ENGINE_Y_LOCATION = (
-    4  # The Y location of the main engine on the body of the Lander.
-)
-
-VIEWPORT_W = 600
-VIEWPORT_H = 400
-
-
-class ContactDetector(contactListener):
-    def __init__(self, env):
-        contactListener.__init__(self)
-        self.env = env
-
-    def BeginContact(self, contact):
-        if (
-            self.env.lander == contact.fixtureA.body
-            or self.env.lander == contact.fixtureB.body
-        ):
-            self.env.game_over = True
-        for i in range(2):
-            if self.env.legs[i] in [contact.fixtureA.body, contact.fixtureB.body]:
-                self.env.legs[i].ground_contact = True
-
-    def EndContact(self, contact):
-        for i in range(2):
-            if self.env.legs[i] in [contact.fixtureA.body, contact.fixtureB.body]:
-                self.env.legs[i].ground_contact = False
-
-
 # Create Environment
 # Initialize Pygame
 pygame.init()
@@ -85,7 +40,6 @@ BLACK = (0,0,0)
 WHITE = (255,255,255)
 BACKGROUND_COLOR = BLACK
 SHAPES = []
-PALETTE = []
 
 
 # Shape class
@@ -137,14 +91,10 @@ while running:
                     (280, 80)]
     pygame.draw.polygon(screen, WHITE, points1)
     shape_triangle = pygame.Rect(220, 20, 60, 60)
+    for shape in SHAPES:
+        shape.draw(screen)
+        
     for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            for s in SHAPES:
-                print(s)
-            running = False
-            pygame.quit()
-
-
 
         if event.type == pygame.MOUSEBUTTONDOWN:
             mouse_x, mouse_y = event.pos
@@ -180,10 +130,19 @@ while running:
                 dragging_shape.position = event.pos
 
     # Draw canvas shapes
-    for shape in SHAPES:
-        shape.draw(screen)
+    
 
     pygame.display.flip()
     clock.tick(60)
+    if event.type == pygame.QUIT:
+            for s in SHAPES:
+                print(s)
+            running = False
+            pygame.quit()
 
+# Drag and Drop Activity Finished
+
+
+
+print(SHAPES)
 
