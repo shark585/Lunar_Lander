@@ -11,7 +11,8 @@ import math
 from typing import TYPE_CHECKING, Optional
 import vlc 
 import numpy as np
-
+import matplotlib as plt
+import matplotlib
 import gymnasium as gym
 from gymnasium import error, spaces
 from gymnasium.error import DependencyNotInstalled
@@ -113,6 +114,18 @@ class Shape:
     def __repr__(self):
         return "Shape: " + self.shape_type + str(self.position)
 
+# Points Methods
+
+def circle_points(center, radius, num_points=1000):
+    return [(int(center[0] + radius * math.cos(2 * math.pi * i / num_points)),
+    int(center[1] + radius * math.sin(2 * math.pi * i / num_points)))
+    for i in range(num_points)]
+
+def square_points(top_left, size):
+    x, y = top_left
+    return [(x, y), (x + size, y), (x + size, y + size), (x, y + size)]
+
+
 
 # Initialize Pygame
 pygame.init()
@@ -212,13 +225,13 @@ class ContactDetector(contactListener):
         for i in range(2):
             if self.env.legs[i] in [contact.fixtureA.body, contact.fixtureB.body]:
                 self.env.legs[i].ground_contact = True
+        print(f"Start: {contact.fixtureA.body}, {contact.fixtureB.body}")
 
     def EndContact(self, contact):
         for i in range(2):
             if self.env.legs[i] in [contact.fixtureA.body, contact.fixtureB.body]:
                 self.env.legs[i].ground_contact = False
-
-
+        print(f"End: {contact.fixtureA.body}, {contact.fixtureB.body}")
 class CustomEnvLunarLander(gym.Env, EzPickle):
     r"""
     ## Description
@@ -514,6 +527,27 @@ class CustomEnvLunarLander(gym.Env, EzPickle):
             self.moon.CreateEdgeFixture(vertices=[p1, p2], density=0, friction=0.1)
             self.sky_polys.append([p1, p2, (p2[0], H), (p1[0], H)])
         '''
+
+        for s in SHAPES:
+            if s.shape_type == 'circle':
+                points = circle_points((s.position[0], 400 - s.position[1]), 30)
+
+            elif s.shape_type == 'square':
+                points = square_points((s.position[0] - 30, 400 - s.position[1] - 30), 60)
+                #pygame.draw.rect(surface, self.color, (self.position[0] - 30, self.position[1] - 30, 60, 60))
+            
+            elif s.shape_type == 'triangle':
+                points = [(s.position[0], 400 - s.position[1] + 30), 
+                    (s.position[0] - 30, 400 - s.position[1] - 30), 
+                    (s.position[0] + 30, 400 - s.position[1] - 30)]
+
+
+            for i in range(len(points)):
+                v1 = points[i]
+                v2 = points[(i + 1) % len(points)]  
+                self.moon.CreateEdgeFixture(vertices = [v1,v2], density = 0, friction = 0.1)
+
+        self.moon.CreateEdgeFixture(vertices = [(0,100),(600,100)], density = 0, friction = 0.1)
         self.moon.color1 = (0.0, 0.0, 0.0)
         self.moon.color2 = (0.0, 0.0, 0.0)
 
@@ -839,7 +873,7 @@ class CustomEnvLunarLander(gym.Env, EzPickle):
         self.surf = pygame.Surface((VIEWPORT_W, VIEWPORT_H))
 
         pygame.transform.scale(self.surf, (SCALE, SCALE))
-        pygame.draw.rect(self.surf, (255, 255, 255), self.surf.get_rect())
+        pygame.draw.rect(self.surf, (0,0,0), self.surf.get_rect())
 
         for obj in self.particles:
             obj.ttl -= 0.15
@@ -856,32 +890,20 @@ class CustomEnvLunarLander(gym.Env, EzPickle):
 
         self._clean_particles(False)
 
-
-        def circle_points(center, radius, num_points=1000):
-            return [(int(center[0] + radius * math.cos(2 * math.pi * i / num_points)),
-            int(center[1] + radius * math.sin(2 * math.pi * i / num_points)))
-            for i in range(num_points)]
-
-        def square_points(top_left, size):
-            x, y = top_left
-            return [(x, y), (x + size, y), (x + size, y + size), (x, y + size)]
-
         for s in SHAPES:
-            s.position[1] = 400 - s.position[1]
-
             if s.shape_type == 'circle':
-                points = circle_points(s.position, 30)
+                points = circle_points((s.position[0], 400 - s.position[1]), 30)
 
             elif s.shape_type == 'square':
-                points = square_points(s.position, 60)
+                points = square_points((s.position[0] - 30, 400 - s.position[1] - 30), 60)
+                #pygame.draw.rect(surface, self.color, (self.position[0] - 30, self.position[1] - 30, 60, 60))
             
             elif s.shape_type == 'triangle':
-                points = [(s.position[0], s.position[1] - 30), 
-                    (s.position[0] - 30, s.position[1] + 30), 
-                    (s.position[0] + 30, s.position[1] + 30)]
-
-            pygame.draw.polygon(self.surf, BLACK, points)
-            gfxdraw.aapolygon(self.surf, points, BLACK)
+                points = [(s.position[0], 400 - s.position[1] + 30), 
+                    (s.position[0] - 30, 400 - s.position[1] - 30), 
+                    (s.position[0] + 30, 400 - s.position[1] - 30)]
+            pygame.draw.polygon(self.surf, WHITE, points)
+            gfxdraw.aapolygon(self.surf, points, WHITE)
 
         '''    
         for p in self.sky_polys:
@@ -917,13 +939,13 @@ class CustomEnvLunarLander(gym.Env, EzPickle):
                         self.surf, color=obj.color2, points=path, closed=True
                     )
 
-                for x in [self.helipad_x1, self.helipad_x2]:
+                for x in [VIEWPORT_W/2 - 50, VIEWPORT_W/2 + 50]:
                     x = x * SCALE
                     flagy1 = self.helipad_y * SCALE
                     flagy2 = flagy1 + 50
                     pygame.draw.line(
                         self.surf,
-                        color=(255, 255, 255),
+                        color=(0, 0, 0),
                         start_pos=(x, flagy1),
                         end_pos=(x, flagy2),
                         width=1,
@@ -1049,8 +1071,10 @@ env.close()
 print(f"\nTotal reward: {total_reward}")
 
 # show video
+'''
 html = render_mp4("video/CustomEnv_pretraining-episode-0.mp4")
 HTML(html)
+'''
 
 model.learn(total_timesteps=1000, log_interval=100, callback=callback)
 # The performance of the training will be printed every 10000 episodes. Change it to 1, if you wish to
@@ -1084,7 +1108,7 @@ env.close()
 print(f"\nTotal reward: {total_reward}")
 print("done!")
 # show video
-command = ['mpv', 'video/LunarLander-v3_learned-episode-0.mp4']
+command = ['mpv', 'video/CustomEnv_learned-episode-0.mp4']
 result = subprocess.run(command, capture_output = True, text = True)
 
 matplotlib.use("Agg")
@@ -1096,4 +1120,3 @@ plt.xlabel('Timesteps')
 plt.ylabel('Episode Rewards')
 print("ok")
 plt.savefig('foo.png', edgecolor = 'RED', transparent = False)
-
