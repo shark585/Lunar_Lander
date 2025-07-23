@@ -1,8 +1,15 @@
 __credits__ = ["Andrea PIERRÉ"]
+import subprocess
+import io
+import os
+import glob
+import torch
+import base64
+import minigrid
 import sys
 import math
 from typing import TYPE_CHECKING, Optional
-
+import vlc 
 import numpy as np
 
 import gymnasium as gym
@@ -10,7 +17,17 @@ from gymnasium import error, spaces
 from gymnasium.error import DependencyNotInstalled
 from gymnasium.utils import EzPickle
 from gymnasium.utils.step_api_compatibility import step_api_compatibility
+#from gymnasium.envs.box2d.lunar_lander import *
+from gymnasium.wrappers import RecordVideo
+from ale_py import ALEInterface
 
+
+
+import stable_baselines3
+from stable_baselines3 import DQN
+from stable_baselines3.common.results_plotter import ts2xy, load_results
+from stable_baselines3.common.callbacks import EvalCallback
+from stable_baselines3.common.env_util import make_atari_env
 
 try:
     import Box2D
@@ -27,6 +44,10 @@ except ImportError as e:
         'Box2D is not installed, you can install it by run `pip install swig` followed by `pip install "gymnasium[box2d]"`'
     ) from e
 
+
+from IPython.display import HTML
+from base64 import b64encode
+from pyvirtualdisplay import Display
 import pygame
 
 
@@ -198,7 +219,7 @@ class ContactDetector(contactListener):
                 self.env.legs[i].ground_contact = False
 
 
-class LunarLander(gym.Env, EzPickle):
+class CustomEnvLunarLander(gym.Env, EzPickle):
     r"""
     ## Description
     This environment is a classic rocket trajectory optimization problem.
@@ -469,7 +490,7 @@ class LunarLander(gym.Env, EzPickle):
         chunk_x = [W / (CHUNKS - 1) * i for i in range(CHUNKS)]
         self.helipad_x1 = chunk_x[CHUNKS // 2 - 1]
         self.helipad_x2 = chunk_x[CHUNKS // 2 + 1]
-        self.helipad_y = H / 4
+        
         height[CHUNKS // 2 - 2] = self.helipad_y
         height[CHUNKS // 2 - 1] = self.helipad_y
         height[CHUNKS // 2 + 0] = self.helipad_y
@@ -480,20 +501,19 @@ class LunarLander(gym.Env, EzPickle):
             for i in range(CHUNKS)
         ]
         '''
+        self.helipad_y = H / 4
         self.moon = self.world.CreateStaticBody(
             shapes=edgeShape(vertices=[(0, 0), (W, 0)])
         )
+
+        '''
         self.sky_polys = []
-        for s in SHAPES:
-            p1 = 
-            self.moon.CreateEdgeFixture(vertices = [s.position[0], 400 - s.position[1]], density = 0, friction = 0.1)
-            self.sky_polys.append()
         for i in range(CHUNKS - 1):
             p1 = (chunk_x[i], smooth_y[i])
             p2 = (chunk_x[i + 1], smooth_y[i + 1])
             self.moon.CreateEdgeFixture(vertices=[p1, p2], density=0, friction=0.1)
             self.sky_polys.append([p1, p2, (p2[0], H), (p1[0], H)])
-
+        '''
         self.moon.color1 = (0.0, 0.0, 0.0)
         self.moon.color2 = (0.0, 0.0, 0.0)
 
@@ -862,14 +882,15 @@ class LunarLander(gym.Env, EzPickle):
 
             pygame.draw.polygon(self.surf, BLACK, points)
             gfxdraw.aapolygon(self.surf, points, BLACK)
-            
+
+        '''    
         for p in self.sky_polys:
             scaled_poly = []
             for coord in p:
                 scaled_poly.append((coord[0] * SCALE, coord[1] * SCALE))
             pygame.draw.polygon(self.surf, (0, 0, 0), scaled_poly)
             gfxdraw.aapolygon(self.surf, scaled_poly, (0, 0, 0))
-
+        '''
 
         for obj in self.particles + self.drawlist:
             for f in obj.fixtures:
@@ -945,5 +966,134 @@ class LunarLander(gym.Env, EzPickle):
 
 
 
+# Main Script
 
+os.makedirs("./video", exist_ok=True)
+display = Display(visible=False, size=(600, 400))
+_ = display.start()
+
+
+def render_mp4(videopath: str) -> str:
+  """
+  Gets a string containing a b4-encoded version of the MP4 video
+  at the specified path.
+  """
+  mp4 = open(videopath, 'rb').read()
+  base64_encoded_mp4 = b64encode(mp4).decode()
+  return f'<video width=400 controls><source src="data:video/mp4;' \
+         f'base64,{base64_encoded_mp4}" type="video/mp4"></video>'
+
+
+nn_layers = [64, 64]  # This is the configuration of your neural network. Currently, we have two layers, each consisting of 64 neurons.
+                      # If you want three layers with 64 neurons each, set the value to [64,64,64] and so on.
+
+learning_rate = 0.001  # This is the step-size with which the gradient descent is carried out.
+                       # Tip: Use smaller step-sizes for larger networks.
+
+log_dir = "./tmp/gym/"
+os.makedirs(log_dir, exist_ok=True)
+
+env = CustomEnvLunarLander(
+        render_mode = "rgb_array",
+        enable_wind = True,
+        wind_power = 10.0,
+        turbulence_power = 1.3,
+)
+
+env = stable_baselines3.common.monitor.Monitor(env, log_dir)
+
+callback = EvalCallback(env, log_path=log_dir, deterministic=True)  # For evaluating the performance of the agent periodically and logging the results.
+policy_kwargs = dict(activation_fn=torch.nn.ReLU,
+                     net_arch=nn_layers)
+model = DQN("MlpPolicy", env,policy_kwargs = policy_kwargs,
+            learning_rate=learning_rate,
+            batch_size=32,  # for simplicity, we are not doing batch update.
+            buffer_size=10000,  # size of experience of replay buffer. Set to 1 as batch update is not done
+            learning_starts=1000,  # learning starts immediately!
+            gamma=0.99,  # discount facto. range is between 0 and 1.
+            tau = .005,  # the soft update coefficient for updating the target network
+            target_update_interval=100,  # update the target network immediately.
+            train_freq=(4,"step"),  # train the network at every step.
+            max_grad_norm = 10,  # the maximum value for the gradient clipping
+            exploration_initial_eps = 1,  # initial value of random action probability
+            exploration_fraction = 0.1,  # fraction of entire training period over which the exploration rate is reduced
+            gradient_steps = 1,  # number of gradient steps
+            seed = 1,  # seed for the pseudo random generators
+            verbose=1)  # Set verbose to 1 to observe training logs. We encourage you to set the verbose to 1.
+
+env = CustomEnvLunarLander(
+        render_mode = "rgb_array",
+        enable_wind = True,
+        wind_power = 10.0,
+        turbulence_power = 1.3,
+)
+
+env = gym.wrappers.RecordVideo(
+    env,
+    video_folder="video",
+    name_prefix="CustomEnv",
+    episode_trigger=lambda episode_id: True
+)
+
+observation, _ = env.reset()
+total_reward = 0
+done = False
+
+while not done:
+    action, states = model.predict(observation, deterministic=True)
+    observation, reward, terminated, truncated, info = env.step(action)
+    done = terminated or truncated
+    total_reward += reward
+
+env.close()
+print(f"\nTotal reward: {total_reward}")
+
+# show video
+html = render_mp4("video/CustomEnv_pretraining-episode-0.mp4")
+HTML(html)
+
+model.learn(total_timesteps=1000, log_interval=100, callback=callback)
+# The performance of the training will be printed every 10000 episodes. Change it to 1, if you wish to
+# view the performance at every training episode.
+
+env = CustomEnvLunarLander(
+        render_mode = "rgb_array",
+        enable_wind = True,
+        wind_power = 10.0,
+        turbulence_power = 1.3,
+)
+
+env = gym.wrappers.RecordVideo(
+    env,
+    video_folder="video",
+    name_prefix="CustomEnv_learned",
+    episode_trigger=lambda episode_id: True
+)
+
+observation, _ = env.reset()
+total_reward = 0
+done = False
+
+while not done:
+    action, states = model.predict(observation, deterministic=True)
+    observation, reward, terminated, truncated, info = env.step(action)
+    done = terminated or truncated
+    total_reward += reward
+    
+env.close()
+print(f"\nTotal reward: {total_reward}")
+print("done!")
+# show video
+command = ['mpv', 'video/LunarLander-v3_learned-episode-0.mp4']
+result = subprocess.run(command, capture_output = True, text = True)
+
+matplotlib.use("Agg")
+x, y = ts2xy(load_results(log_dir), 'timesteps')  # Organising the logged results in to a clean format for plotting.
+print(x,y)
+plt.plot(x, y)
+plt.ylim([-1000, 300])
+plt.xlabel('Timesteps')
+plt.ylabel('Episode Rewards')
+print("ok")
+plt.savefig('foo.png', edgecolor = 'RED', transparent = False)
 
