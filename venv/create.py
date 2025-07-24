@@ -54,7 +54,7 @@ import pygame
 
 # Constants for Lunar Lander
 
-
+PIXELS_PER_METER = 30
 CATEGORY_STATIC = 0x0001  # Example category for static bodies
 CATEGORY_DYNAMIC = 0x0002  # Example category for dynamic bodies
 
@@ -524,23 +524,6 @@ class CustomEnvLunarLander(gym.Env, EzPickle):
         H = VIEWPORT_H / SCALE
 
         # Create Terrain
-        '''
-        CHUNKS = 11
-        height = self.np_random.uniform(0, H / 2, size=(CHUNKS + 1,))
-        chunk_x = [W / (CHUNKS - 1) * i for i in range(CHUNKS)]
-        self.helipad_x1 = chunk_x[CHUNKS // 2 - 1]
-        self.helipad_x2 = chunk_x[CHUNKS // 2 + 1]
-        
-        height[CHUNKS // 2 - 2] = self.helipad_y
-        height[CHUNKS // 2 - 1] = self.helipad_y
-        height[CHUNKS // 2 + 0] = self.helipad_y
-        height[CHUNKS // 2 + 1] = self.helipad_y
-        height[CHUNKS // 2 + 2] = self.helipad_y
-        smooth_y = [
-            0.33 * (height[i - 1] + height[i + 0] + height[i + 1])
-            for i in range(CHUNKS)
-        ]
-        '''
 
         self.helipad_y = H / 4
         
@@ -553,41 +536,52 @@ class CustomEnvLunarLander(gym.Env, EzPickle):
         #self.moon.filter.categoryBits = CATEGORY_STATIC
 
 
-
-        static_body_def = Box2D.b2BodyDef()
-        static_body_def.type = Box2D.b2_staticBody
-        static_body_def.position = (0.0, 0.0)
-
-        static_body = self.world.CreateBody(static_body_def)
+        bodies = []
+        for s in SHAPES:
+            static_body_def = Box2D.b2BodyDef()
+            static_body_def.type = Box2D.b2_staticBody
+            static_body_def.position = ((s.position[0]) / SCALE, (400-s.position[1])/ SCALE) 
+            static_body = self.world.CreateBody(static_body_def)
 
 # Define a shape for the static body
-        box_shape = Box2D.b2PolygonShape()
-        box_shape.SetAsBox(6, 2)  # Create a box shape
+            if s.shape_type == "square":
+                box_shape = Box2D.b2PolygonShape()
+                box_shape.SetAsBox(1,1)  # Create a box shape
+                static_fixture_def = Box2D.b2FixtureDef()
+                static_fixture_def.shape = box_shape
+            elif s.shape_type == "circle":
+                circle_shape = Box2D.b2CircleShape()
+                circle_shape.radius = 1.0  # Set the radius of the circle
+                static_fixture_def = Box2D.b2FixtureDef()
+                static_fixture_def.shape = circle_shape
 
+            elif s.shape_type == "triangle":
+                
+                triangle_shape = Box2D.b2CheckPolygon()
+                vertices = [
+                    Box2D.b2Vec2(s.position[0]/30, (400 - s.position[1] + 30)/30),  # Top vertex
+                    Box2D.b2Vec2((s.position[0] - 30)/30, (400 - s.position[1] - 30)/30),  # Bottom left vertex
+                    Box2D.b2Vec2((s.position[0] + 30)/30, (400 - s.position[1] - 30)/30)   # Bottom right vertex
+                ]
+                
+
+                triangle_shape.Set(vertices)
+                # Set the vertices for the triangle shape using SetAsArray
+                #triangle_shape.SetAsArray(vertices, len(vertices))
+                static_fixture_def.shape = triangle_shape
 # Create a fixture definition for the static body
-        static_fixture_def = Box2D.b2FixtureDef()
-        static_fixture_def.shape = box_shape
-        static_fixture_def.isSensor = False  # Set to True if you want it to be a sensor
-        static_fixture_def.filter.categoryBits = CATEGORY_STATIC  # Set category bits
-        static_fixture_def.filter.maskBits = CATEGORY_DYNAMIC  # Set mask bits
+            #elif s.shape_type == "triangle":
+
+            static_fixture_def.isSensor = False  # Set to True if you want it to be a sensor
+            static_fixture_def.filter.categoryBits = CATEGORY_STATIC  # Set category bits
+            static_fixture_def.filter.maskBits = CATEGORY_DYNAMIC  # Set mask bits
 
 # Attach the fixture to the static body
-        static_body.CreateFixture(static_fixture_def)
+            static_body.CreateFixture(static_fixture_def)
+            bodies.append(static_body)
 
 
-        self.shape = self.world.CreateStaticBody(shapes = edgeShape(vertices = [(0,100), (W,100)]))
-
-
-
-        self.sky_polys = []
-
-        '''
-        for i in range(CHUNKS - 1):
-            p1 = (chunk_x[i], smooth_y[i])
-            p2 = (chunk_x[i + 1], smooth_y[i + 1])
-            self.moon.CreateEdgeFixture(vertices=[p1, p2], density=0, friction=0.1)
-            self.sky_polys.append([p1, p2, (p2[0], H), (p1[0], H)])
-        '''
+        #self.shape = self.world.CreateStaticBody(shapes = edgeShape(vertices = [(0,100), (W,100)]))
 
         for s in SHAPES:
             if s.shape_type == 'circle':
@@ -602,21 +596,10 @@ class CustomEnvLunarLander(gym.Env, EzPickle):
                     (s.position[0] - 30, 400 - s.position[1] - 30), 
                     (s.position[0] + 30, 400 - s.position[1] - 30)]
 
-        '''
-        for i in range(len(points)):
-            v1_x = points[i][0]
-            v1_y = np.float64(points[i][1])
-            v1 = (v1_x,v1_y)
-            v2_x = points[i%len(points)][0]
-            v2_y = np.float64(points[i%len(points)][1])
-            v2 = (v2_x,v2_y)
-            self.moon.CreateEdgeFixture(vertices = [v1,v2], density = 0, friction = 0.1)
-            self.sky_polys.append([v1,v2, (v2[0], H), (v1[0], H)])
-
 
         self.moon.color1 = (WHITE)
         self.moon.color2 = (WHITE)
-        '''
+        
         # Create Lander body
         initial_y = VIEWPORT_H / SCALE
         initial_x = VIEWPORT_W / SCALE / 2
@@ -956,8 +939,6 @@ class CustomEnvLunarLander(gym.Env, EzPickle):
 
         self._clean_particles(False)
 
-            
-        
         print('start shapes')
         for s in SHAPES:
             if s.shape_type == 'circle':
@@ -972,20 +953,10 @@ class CustomEnvLunarLander(gym.Env, EzPickle):
                 points = [(s.position[0], 400 - s.position[1] + 30), 
                     (s.position[0] - 30, 400 - s.position[1] - 30), 
                     (s.position[0] + 30, 400 - s.position[1] - 30)]
-            print(points)
             pygame.draw.polygon(self.surf, WHITE, points)
             #gfxdraw.aapolygon(self.surf, points, WHITE)
         print('end shapes')
 
-        
-        '''    
-        for p in self.sky_polys:
-            scaled_poly = []
-            for coord in p:
-                scaled_poly.append((coord[0] * SCALE, coord[1] * SCALE))
-            pygame.draw.polygon(self.surf, (0, 0, 0), scaled_poly)
-            gfxdraw.aapolygon(self.surf, scaled_poly, (0, 0, 0))
-        '''
 
         for obj in self.particles + self.drawlist:
             for f in obj.fixtures:
@@ -1012,31 +983,6 @@ class CustomEnvLunarLander(gym.Env, EzPickle):
                         self.surf, color=obj.color2, points=path, closed=True
                     )
 
-                for x in [VIEWPORT_W/2 - 50, VIEWPORT_W/2 + 50]:
-                    x = x * SCALE
-                    flagy1 = self.helipad_y * SCALE
-                    flagy2 = flagy1 + 50
-                    pygame.draw.line(
-                        self.surf,
-                        color=(0, 0, 0),
-                        start_pos=(x, flagy1),
-                        end_pos=(x, flagy2),
-                        width=1,
-                    )
-                    pygame.draw.polygon(
-                        self.surf,
-                        color=(204, 204, 0),
-                        points=[
-                            (x, flagy2),
-                            (x, flagy2 - 10),
-                            (x + 25, flagy2 - 5),
-                        ],
-                    )
-                    gfxdraw.aapolygon(
-                        self.surf,
-                        [(x, flagy2), (x, flagy2 - 10), (x + 25, flagy2 - 5)],
-                        (204, 204, 0),
-                    )
 
         self.surf = pygame.transform.flip(self.surf, False, True)
 
@@ -1154,7 +1100,7 @@ html = render_mp4("video/CustomEnv_pretraining-episode-0.mp4")
 HTML(html)
 '''
 
-model.learn(total_timesteps=1000, log_interval=100, callback=callback)
+model.learn(total_timesteps=100000, log_interval=10000, callback=callback)
 # The performance of the training will be printed every 10000 episodes. Change it to 1, if you wish to
 # view the performance at every training episode.
 
@@ -1193,10 +1139,13 @@ result = subprocess.run(command, capture_output = True, text = True)
 
 matplotlib.use("Agg")
 x, y = ts2xy(load_results(log_dir), 'timesteps')  # Organising the logged results in to a clean format for plotting.
+'''
 print(x,y)
-plt.plot(x, y)
+
+plt.pyplot(x, y)
 plt.ylim([-1000, 300])
 plt.xlabel('Timesteps')
 plt.ylabel('Episode Rewards')
 print("ok")
 plt.savefig('foo.png', edgecolor = 'RED', transparent = False)
+'''
