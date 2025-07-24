@@ -54,6 +54,10 @@ import pygame
 
 # Constants for Lunar Lander
 
+
+CATEGORY_STATIC = 0x0001  # Example category for static bodies
+CATEGORY_DYNAMIC = 0x0002  # Example category for dynamic bodies
+
 FPS = 50
 SCALE = 30.0  # affects how fast-paced the game is, forces should be adjusted as well
 
@@ -124,6 +128,13 @@ def circle_points(center, radius, num_points=1000):
 def square_points(top_left, size):
     x, y = top_left
     return [(x, y), (x + size, y), (x + size, y + size), (x, y + size)]
+
+
+
+#Create Shape in Box2d
+
+
+
 
 
 
@@ -211,7 +222,7 @@ for s in SHAPES:
 
 #Lunar Lander Start
 
-class ContactDetector(contactListener):
+class ContactDetector(Box2D.b2ContactListener):
     def __init__(self, env):
         contactListener.__init__(self)
         self.env = env
@@ -463,6 +474,22 @@ class CustomEnvLunarLander(gym.Env, EzPickle):
 
         self.render_mode = render_mode
 
+    def create_shape(self, position, shape_type):
+        if shape_type == 'circle':
+            body = self.world.CreateStaticBody(position=position)
+            body.CreateCircleFixture(radius=30)
+        elif shape_type == 'square':
+            body = self.world.CreateStaticBody(position=position)
+            body.CreatePolygonFixture(box=(60,60))  # Width, Height
+        elif shape_type == 'triangle':
+            vertices = [Box2D.b2Vec2(position[0], position[1] - 30),
+                        Box2D.b2Vec2(position[0] - 30, position[1] + 30),
+                        Box2D.b2Vec2(position[0] + 30, position[1] + 30)]
+            body = self.world.CreateStaticBody(position=position)
+            body.CreatePolygonFixture(vertices=vertices)
+    
+        return body
+
     def _destroy(self):
         if not self.moon:
             return
@@ -514,10 +541,42 @@ class CustomEnvLunarLander(gym.Env, EzPickle):
             for i in range(CHUNKS)
         ]
         '''
+
         self.helipad_y = H / 4
+        
         self.moon = self.world.CreateStaticBody(
-            shapes=edgeShape(vertices=[(0, 0), (W, 0)])
+            shapes=edgeShape(vertices=[(0, 100), (W, 100)])
         )
+        
+        
+        #self.moon.filter.maskBits = CATEGORY_DYNAMIC
+        #self.moon.filter.categoryBits = CATEGORY_STATIC
+
+
+
+        static_body_def = Box2D.b2BodyDef()
+        static_body_def.type = Box2D.b2_staticBody
+        static_body_def.position = (0.0, 0.0)
+
+        static_body = self.world.CreateBody(static_body_def)
+
+# Define a shape for the static body
+        box_shape = Box2D.b2PolygonShape()
+        box_shape.SetAsBox(6, 2)  # Create a box shape
+
+# Create a fixture definition for the static body
+        static_fixture_def = Box2D.b2FixtureDef()
+        static_fixture_def.shape = box_shape
+        static_fixture_def.isSensor = False  # Set to True if you want it to be a sensor
+        static_fixture_def.filter.categoryBits = CATEGORY_STATIC  # Set category bits
+        static_fixture_def.filter.maskBits = CATEGORY_DYNAMIC  # Set mask bits
+
+# Attach the fixture to the static body
+        static_body.CreateFixture(static_fixture_def)
+
+
+        self.shape = self.world.CreateStaticBody(shapes = edgeShape(vertices = [(0,100), (W,100)]))
+
 
 
         self.sky_polys = []
@@ -543,21 +602,21 @@ class CustomEnvLunarLander(gym.Env, EzPickle):
                     (s.position[0] - 30, 400 - s.position[1] - 30), 
                     (s.position[0] + 30, 400 - s.position[1] - 30)]
 
+        '''
+        for i in range(len(points)):
+            v1_x = points[i][0]
+            v1_y = np.float64(points[i][1])
+            v1 = (v1_x,v1_y)
+            v2_x = points[i%len(points)][0]
+            v2_y = np.float64(points[i%len(points)][1])
+            v2 = (v2_x,v2_y)
+            self.moon.CreateEdgeFixture(vertices = [v1,v2], density = 0, friction = 0.1)
+            self.sky_polys.append([v1,v2, (v2[0], H), (v1[0], H)])
 
-            for i in range(len(points)-1):
-                v1_x = points[i][0]
-                v1_y = np.float64(points[i][1])
-                v1 = (v1_x,v1_y)
-                v2_x = points[i+1][0]
-                v2_y = np.float64(points[i+1][1])
-                v2 = (v2_x,v2_y)
-                self.moon.CreateEdgeFixture(vertices = [v1,v2], density = 0, friction = 0.1)
-                self.sky_polys.append([v1,v2, (v2[0], H), (v1[0], H)])
 
-
-        self.moon.color1 = (0.0, 0.0, 0.0)
-        self.moon.color2 = (0.0, 0.0, 0.0)
-
+        self.moon.color1 = (WHITE)
+        self.moon.color2 = (WHITE)
+        '''
         # Create Lander body
         initial_y = VIEWPORT_H / SCALE
         initial_x = VIEWPORT_W / SCALE / 2
@@ -570,8 +629,8 @@ class CustomEnvLunarLander(gym.Env, EzPickle):
                 ),
                 density=5.0,
                 friction=0.1,
-                categoryBits=0x0010,
-                maskBits=0x001,  # collide only with ground
+                categoryBits=CATEGORY_DYNAMIC,
+                maskBits = CATEGORY_STATIC,  # collide only with ground
                 restitution=0.0,
             ),  # 0.99 bouncy
         )
@@ -601,8 +660,8 @@ class CustomEnvLunarLander(gym.Env, EzPickle):
                     shape=polygonShape(box=(LEG_W / SCALE, LEG_H / SCALE)),
                     density=1.0,
                     restitution=0.0,
-                    categoryBits=0x0020,
-                    maskBits=0x001,
+                    categoryBits=CATEGORY_DYNAMIC,
+                    maskBits= CATEGORY_STATIC,
                 ),
             )
             leg.ground_contact = False
@@ -643,8 +702,8 @@ class CustomEnvLunarLander(gym.Env, EzPickle):
                 shape=circleShape(radius=2 / SCALE, pos=(0, 0)),
                 density=mass,
                 friction=0.1,
-                categoryBits=0x0100,
-                maskBits=0x001,  # collide only with ground
+                categoryBits=CATEGORY_DYNAMIC,
+                maskBits= 0x00,  # collide only with ground
                 restitution=0.3,
             ),
         )
@@ -897,11 +956,13 @@ class CustomEnvLunarLander(gym.Env, EzPickle):
 
         self._clean_particles(False)
 
-        '''
+            
+        
         print('start shapes')
         for s in SHAPES:
             if s.shape_type == 'circle':
-                points = circle_points((s.position[0], 400 - s.position[1]), 30)
+                pygame.draw.circle(self.surf, WHITE, (s.position[0],400-s.position[1]),30)
+                continue
 
             elif s.shape_type == 'square':
                 points = square_points((s.position[0] - 30, 400 - s.position[1] - 30), 60)
@@ -913,19 +974,10 @@ class CustomEnvLunarLander(gym.Env, EzPickle):
                     (s.position[0] + 30, 400 - s.position[1] - 30)]
             print(points)
             pygame.draw.polygon(self.surf, WHITE, points)
-            gfxdraw.aapolygon(self.surf, points, WHITE)
+            #gfxdraw.aapolygon(self.surf, points, WHITE)
         print('end shapes')
-        ''' 
 
-        print('start sky_polys')
-        for p in self.sky_polys:
-            print(p)
-            scaled_poly = []
-            for coord in p:
-                scaled_poly.append((coord[0] * SCALE, coord[1] * SCALE))
-            pygame.draw.polygon(self.surf, WHITE, scaled_poly)
-            gfxdraw.aapolygon(self.surf, scaled_poly, WHITE)
-        print('end sky_polys')
+        
         '''    
         for p in self.sky_polys:
             scaled_poly = []
@@ -1043,6 +1095,9 @@ env = CustomEnvLunarLander(
         turbulence_power = 1.3,
 )
 
+for s in SHAPES:
+    b = env.create_shape(s.position, s.shape_type)
+
 env = stable_baselines3.common.monitor.Monitor(env, log_dir)
 
 callback = EvalCallback(env, log_path=log_dir, deterministic=True)  # For evaluating the performance of the agent periodically and logging the results.
@@ -1070,6 +1125,8 @@ env = CustomEnvLunarLander(
         wind_power = 10.0,
         turbulence_power = 1.3,
 )
+for s in SHAPES:
+    b = env.create_shape(s.position, s.shape_type)
 
 env = gym.wrappers.RecordVideo(
     env,
@@ -1107,6 +1164,8 @@ env = CustomEnvLunarLander(
         wind_power = 10.0,
         turbulence_power = 1.3,
 )
+for s in SHAPES:
+    b = env.create_shape(s.position, s.shape_type)
 
 env = gym.wrappers.RecordVideo(
     env,
