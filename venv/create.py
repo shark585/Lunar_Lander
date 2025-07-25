@@ -557,15 +557,15 @@ class CustomEnvLunarLander(gym.Env, EzPickle):
 
             elif s.shape_type == "triangle":
                 
-                triangle_shape = Box2D.b2CheckPolygon()
+                
                 vertices = [
                     Box2D.b2Vec2(s.position[0]/30, (400 - s.position[1] + 30)/30),  # Top vertex
                     Box2D.b2Vec2((s.position[0] - 30)/30, (400 - s.position[1] - 30)/30),  # Bottom left vertex
                     Box2D.b2Vec2((s.position[0] + 30)/30, (400 - s.position[1] - 30)/30)   # Bottom right vertex
                 ]
                 
-
-                triangle_shape.Set(vertices)
+                triangle_shape = Box2D.b2PolygonShape(vertices = vertices)
+                #triangle_shape.Set(vertices)
                 # Set the vertices for the triangle shape using SetAsArray
                 #triangle_shape.SetAsArray(vertices, len(vertices))
                 static_fixture_def.shape = triangle_shape
@@ -1036,9 +1036,7 @@ os.makedirs(log_dir, exist_ok=True)
 
 env = CustomEnvLunarLander(
         render_mode = "rgb_array",
-        enable_wind = True,
-        wind_power = 10.0,
-        turbulence_power = 1.3,
+    
 )
 
 for s in SHAPES:
@@ -1051,13 +1049,13 @@ policy_kwargs = dict(activation_fn=torch.nn.ReLU,
                      net_arch=nn_layers)
 model = DQN("MlpPolicy", env,policy_kwargs = policy_kwargs,
             learning_rate=learning_rate,
-            batch_size=32,  # for simplicity, we are not doing batch update.
+            batch_size=64,  # for simplicity, we are not doing batch update.
             buffer_size=10000,  # size of experience of replay buffer. Set to 1 as batch update is not done
             learning_starts=1000,  # learning starts immediately!
             gamma=0.99,  # discount facto. range is between 0 and 1.
             tau = .005,  # the soft update coefficient for updating the target network
             target_update_interval=100,  # update the target network immediately.
-            train_freq=(4,"step"),  # train the network at every step.
+            train_freq=(8,"step"),  # train the network at every step.
             max_grad_norm = 10,  # the maximum value for the gradient clipping
             exploration_initial_eps = 1,  # initial value of random action probability
             exploration_fraction = 0.1,  # fraction of entire training period over which the exploration rate is reduced
@@ -1067,9 +1065,7 @@ model = DQN("MlpPolicy", env,policy_kwargs = policy_kwargs,
 
 env = CustomEnvLunarLander(
         render_mode = "rgb_array",
-        enable_wind = True,
-        wind_power = 10.0,
-        turbulence_power = 1.3,
+    
 )
 for s in SHAPES:
     b = env.create_shape(s.position, s.shape_type)
@@ -1100,15 +1096,13 @@ html = render_mp4("video/CustomEnv_pretraining-episode-0.mp4")
 HTML(html)
 '''
 
-model.learn(total_timesteps=100000, log_interval=10000, callback=callback)
+model.learn(total_timesteps=20000, log_interval=10000, callback=callback)
 # The performance of the training will be printed every 10000 episodes. Change it to 1, if you wish to
 # view the performance at every training episode.
 
 env = CustomEnvLunarLander(
         render_mode = "rgb_array",
-        enable_wind = True,
-        wind_power = 10.0,
-        turbulence_power = 1.3,
+        
 )
 for s in SHAPES:
     b = env.create_shape(s.position, s.shape_type)
@@ -1116,7 +1110,7 @@ for s in SHAPES:
 env = gym.wrappers.RecordVideo(
     env,
     video_folder="video",
-    name_prefix="CustomEnv_learned",
+    name_prefix="CustomEnv_learned(new)",
     episode_trigger=lambda episode_id: True
 )
 
